@@ -1,16 +1,23 @@
-Palm/PK22Patient version 0.01
+Palm/PK22Patient version 0.10
 =============================
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+NAME
 
-A README file is required for CPAN modules since CPAN extracts the
-README file from a module distribution so that people browsing the
-archive can use it get an idea of the modules uses. It is usually a
-good idea to provide version information here so that people can
-decide whether fixes for the module are worth downloading.
+Palm::PK22Patient -- interface to the PatientKeeper patient database
+
+SYNOPSIS
+
+    use Palm::PDB;
+    use Palm::PK22Patient;
+
+    $pdb = new Palm::PDB;
+    $pdb->Load("/mypalmsyncdir/backup/PK22-PatientDB.pdb");
+
+    # Manipulate records in $pdb
+
+    $pdb->Write("myotherfile.pdb");
+
+
 
 INSTALLATION
 
@@ -23,16 +30,14 @@ To install this module type the following:
 
 DEPENDENCIES
 
-This module requires these other modules and libraries:
+This module requires the p5-Palm library.
 
-  blah blah blah
 
 COPYRIGHT AND LICENCE
 
-Put the correct copyright and licence information here.
 
-Copyright (C) 2003 A. U. Thor
+Copyright (C) 2003 William Herrera
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+it under the same terms as Perl itself.
 

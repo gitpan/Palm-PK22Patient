@@ -1,92 +1,268 @@
 package Palm::PK22Patient;
+# Palm::PK22Patient.pm
+#
+# Perl class for dealing with Palm PatientKeeper 2.2 format databases.
+#
+# Copyright (c) 2003 William Herrera. All rights reserved.
+# This program is free software; you can redistribute it and/or modify it
+# under the same terms as Perl itself. Also, see the CREDITS.
+#
 
-use 5.008;
+sub Version { $VERSION; }
+$VERSION = sprintf("%d.%02d", q$Revision: 0.10 $ =~ /(\d+)\.(\d+)/);
+
 use strict;
-use warnings;
+use Palm::Raw();
+use vars qw( $VERSION @ISA );
+@ISA = qw( Palm::Raw Palm::StdAppInfo );
 
-require Exporter;
-use AutoLoader qw(AUTOLOAD);
+sub import
+{
+	&Palm::PDB::RegisterPDBHandlers(__PACKAGE__,
+		"pk22"
+		);
+}
 
-our @ISA = qw(Exporter);
+sub new
+{
+	my $classname	= shift;
+	my $self	= $classname->SUPER::new(@_);
+			# Create a generic PDB. No need to rebless it,
+			# though.
 
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
+	$self->{name} = "PK22PatientDB";	# Default
+	$self->{creator} = "pk22";
+	$self->{type} = 0x0A;
+	$self->{attributes}{resource} = 0;
+				# The PDB is not a resource database by
+				# default, but it's worth emphasizing,
+				# since PK22PatientDB is explicitly not a PRC.
+	$self->{appinfo} = Palm::StdAppInfo->newStdAppInfo();
+					# Standard AppInfo block
+	$self->{sort} = undef;	# Empty sort block
 
-# This allows declaration	use Palm::PK22Patient ':all';
-# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
-# will save memory.
-our %EXPORT_TAGS = ( 'all' => [ qw(
-	
-) ] );
+	$self->{records} = [];	# Empty list of records
 
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
-
-our @EXPORT = qw(
-	
-);
-
-our $VERSION = '0.01';
+	return $self;
+}
 
 
-# Preloaded methods go here.
+sub new_Record
+{
+	my $classname = shift;
+	my $retval = $classname->SUPER::new_Record(@_);
+	my $record;
+	my $record->{unknown_fixedformat12chars} = "\0\0\0\0\0\0\0\0\0\0\0\0";
+	$record->{lastname} = undef;
+	$record->{firstname} = undef;
+	$record->{id} = undef;
+	$record->{race} = undef;
+	$record->{age} = undef;
+	$record->{bed} = undef;
+	$record->{diagnosis} = undef;
 
-# Autoload methods go after =cut, and are processed by the autosplit program.
+	$record->{CC} = undef;
+	$record->{PMH} = undef;
+	$record->{PSH} = undef;
+	$record->{SH} = undef;
 
+	$record->{assessment} = undef;
+	$record->{plan} = undef;
+
+	$record->{PE_Gen} = undef;
+	$record->{PE_HEENT} = undef;
+	$record->{PE_Neck} = undef;
+	$record->{PE_Resp} = undef;
+	$record->{PE_CV} = undef;
+	$record->{PE_Abd} = undef;
+	$record->{PE_GU} = undef;
+	$record->{PE_Ext} = undef;
+	$record->{PE_MusSk} = undef;
+	$record->{PE_Breast} = undef;
+	$record->{PE_Neuro} = undef;
+	$record->{PE_Other} = undef;
+
+	$record->{primaryMD}  = undef;
+	$record->{consulting}  = undef;
+	$record->{team}  = undef;
+	$record->{xcover}  = undef;
+	$record->{t_gt}  = undef;
+	$record->{notes}  = undef;
+	$record->{unknown_Z} = undef;
+
+	return $retval;
+}
+
+# ParseAppInfoBlock
+# Parse the AppInfo block for PK22Patient databases.
+# There appears to be one byte of padding at the end.
+sub ParseAppInfoBlock
+{
+	my $self = shift;
+	my $data = shift;
+	my $startOfWeek;
+	my $i;
+	my $appinfo = {};
+	my $std_len;
+
+	# Get the standard parts of the AppInfo block
+	$std_len = &Palm::StdAppInfo::parse_StdAppInfo($appinfo, $data);
+
+	$data = substr $data, $std_len;		# Remove the parsed part
+
+	return $appinfo;
+}
+
+sub PackAppInfoBlock
+{
+	my $self = shift;
+	my $retval;
+
+	# Pack the standard part of the AppInfo block
+	$retval = &Palm::StdAppInfo::pack_StdAppInfo($self->{appinfo});
+
+	# And the application-specific stuff
+	$retval .= pack("x2 C x", $self->{appinfo}{start_of_week});
+
+	return $retval;
+}
+
+sub ParseRecord
+{
+	my $self = shift;
+	my %record = @_;
+	my $data = $record{data};
+	$record{unknown_fixedformat12chars} = substr($data, 0, 12);
+	$record{discharged} = 1 if substr($data, 0 , 1) & 0xC == 0xC;
+	my $strings = substr($data, 12);
+	(
+	$record{lastname},
+	$record{firstname},
+	$record{id},
+	$record{race},
+	$record{age},
+	$record{bed},
+	$record{diagnosis},
+	$record{CC},
+	$record{PMH},
+	$record{PSH},
+	$record{SH},
+	$record{assessment},
+	$record{plan},
+	$record{PE_Gen},
+	$record{PE_HEENT},
+	$record{PE_Neck},
+	$record{PE_Resp},
+	$record{PE_CV},
+	$record{PE_Abd},
+	$record{PE_GU},
+	$record{PE_Ext},
+	$record{PE_MusSk},
+	$record{PE_Breast},
+	$record{PE_Neuro},
+	$record{PE_Other},
+	$record{primaryMD},
+	$record{consulting},
+	$record{team},
+	$record{xcover},
+	$record{t_gt},
+	$record{notes},
+	$record{unknown_Z}
+	) = split '\0', $strings;
+    return \%record;
+}
+
+sub PackRecord
+{
+	my $self = shift;
+	my $record = shift;
+	my $packstr =
+		"a12 " .
+		"a* a* a* a* a* a* a* a* " .
+		"a* a* a* a* a* a* a* a* " .
+		"a* a* a* a* a* a* a* a* " .
+		"a* a* a* a* a* a* a* a*";
+	substr($record->{unknown_fixedformat12chars}, 0 , 1) |= 0xC if($record->{discharged});
+	my $retval = pack $packstr,
+	$record->{unknown_fixedformat12chars},
+	$record->{lastname},
+	$record->{firstname},
+	$record->{id},
+	$record->{race},
+	$record->{age},
+	$record->{bed},
+	$record->{diagnosis},
+	$record->{CC},
+	$record->{PMH},
+	$record->{PSH},
+	$record->{SH},
+	$record->{assessment},
+	$record->{plan},
+	$record->{PE_Gen},
+	$record->{PE_HEENT},
+	$record->{PE_Neck},
+	$record->{PE_Resp},
+	$record->{PE_CV},
+	$record->{PE_Abd},
+	$record->{PE_GU},
+	$record->{PE_Ext},
+	$record->{PE_MusSk},
+	$record->{PE_Breast},
+	$record->{PE_Neuro},
+	$record->{PE_Other},
+	$record->{primaryMD},
+	$record->{consulting},
+	$record->{team},
+	$record->{cover},
+	$record->{t_gt},
+	$record->{notes},
+	$record->{unknown_Z};
+	return $retval;
+}
+
+# end of code in package
 1;
+
 __END__
-# Below is stub documentation for your module. You'd better edit it!
 
 =head1 NAME
 
-Palm::PK22Patient - Perl extension for blah blah blah
+Palm::PK22Patient -- interface to the PatientKeeper patient database
 
 =head1 SYNOPSIS
 
-  use Palm::PK22Patient;
-  blah blah blah
+    use Palm::PDB;
+    use Palm::PK22Patient;
 
-=head1 ABSTRACT
+    $pdb = new Palm::PDB;
+    $pdb->Load("/mypalmsyncdir/backup/PK22-PatientDB.pdb");
 
-  This should be the abstract for Palm::PK22Patient.
-  The abstract is used when making PPD (Perl Package Description) files.
-  If you don't want an ABSTRACT you should also edit Makefile.PL to
-  remove the ABSTRACT_FROM option.
+    # Manipulate records in $pdb
+
+    $pdb->Write("myotherfile.pdb");
 
 =head1 DESCRIPTION
 
-Stub documentation for Palm::PK22Patient, created by h2xs. It looks like the
-author of the extension was negligent enough to leave the stub
-unedited.
+Palm::PK22Patient -- interface to the PatientKeeper patient database
 
-Blah blah blah.
+PatientKeeper is a Palm OS program for physician tracking of hospital patients. Much of this data is stored in the Palm PDB file PK22-PatientDB.pdb, which is backed up when the Palm is synced to the base computer. This perl module is for manipulation of such data.
 
-=head2 EXPORT
+An example program, PK22toCSV.pl, is included. This program converts PK22Patient data to a CSV file.
 
-None by default.
+=head1 KNOWN PROBLEMS AND LIMITATIONS
+
+Only interfaces with the Patient database, not the other PatientKeeper data.
+
+This is ALPHA software. If it corrupts or destroys your data, do not be surprised. Under no circumstances should you trust data touched by this program to be trustworthy for clinical decision making. (There now, our malpractice carrier is smiling again :).
 
 
+=head1 CREDITS
 
-=head1 SEE ALSO
-
-Mention other useful documentation such as the documentation of
-related modules or operating system documentation (such as man pages
-in UNIX), or any relevant external documentation such as RFCs or
-standards.
-
-If you have a mailing list set up for your module, mention it here.
-
-If you have a web site set up for your module, mention it here.
+This is an add-on module for the Coldsync p5-Palm modules. If you find bugs, first make sure you have the latest version of Palm::PDB. Try http://cvs.coldsync.org for this.
 
 =head1 AUTHOR
 
-A. U. Thor, E<lt>a.u.thor@a.galaxy.far.far.awayE<gt>
-
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2003 by A. U. Thor
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+William Herrera <wherrera@skylightview.com>
 
 =cut
+

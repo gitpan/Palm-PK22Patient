@@ -9,8 +9,8 @@ package Palm::PK22Patient;
 #
 
 sub Version { $VERSION; }
-$VERSION = sprintf("%d.%02d", q$Revision: 0.10 $ =~ /(\d+)\.(\d+)/);
-
+$VERSION = sprintf("%d.%02d", q$Revision: 0.15 $ =~ /(\d+)\.(\d+)/);
+$| = 1;
 use strict;
 use Palm::Raw();
 use vars qw( $VERSION @ISA );
@@ -52,7 +52,7 @@ sub new_Record
 	my $classname = shift;
 	my $retval = $classname->SUPER::new_Record(@_);
 	my $record;
-	my $record->{unknown_fixedformat12chars} = "\0\0\0\0\0\0\0\0\0\0\0\0";
+	$record->{unknown_fixedformat12chars} = "\0\0\0\0\0\0\0\0\0\0\0\0";
 	$record->{lastname} = undef;
 	$record->{firstname} = undef;
 	$record->{id} = undef;
@@ -133,7 +133,9 @@ sub ParseRecord
 	my %record = @_;
 	my $data = $record{data};
 	$record{unknown_fixedformat12chars} = substr($data, 0, 12);
-	$record{discharged} = 1 if substr($data, 0 , 1) & 0xC == 0xC;
+	my @ca = unpack (" C C C C C C C C C C C C",
+		$record{unknown_fixedformat12chars});
+	$record{discharged} = ( ($ca[0] & 0xC) == 0xC ) ? 1 : 0;
 	my $strings = substr($data, 12);
 	(
 	$record{lastname},
@@ -169,6 +171,7 @@ sub ParseRecord
 	$record{notes},
 	$record{unknown_Z}
 	) = split '\0', $strings;
+
     return \%record;
 }
 

@@ -2,16 +2,19 @@
 
 use DBI;
 use Carp;
+use strict;
 use Palm::PDB;
 use Palm::StdAppInfo;
 use Palm::PK22Patient;
 
-my $fname = "c:/program files/handspring/bill/backup/pk22-patientDB.pdb";
+my $pdbfname = $ARGV[0] or
+	croak "Usage: perl PK22toCSV.pl <filename, usually PK22-PatientDB.pdb>\n";
+
+my $table = $ARGV[1] || 'PK22PatientCSV';
 
 # set up CSV data table SQL data and query
 # use current directory for the csv file
 my $dbh = DBI->connect("DBI:CSV:");
-my $table = 'PK22PatientCSV';
 $dbh->do("CREATE TABLE $table (
 	lastname VARCHAR(100),
 	firstname VARCHAR(100),
@@ -53,7 +56,7 @@ my $store_query = "INSERT INTO $table VALUES (" .
 
 # set up Palm PDB
 my $pdb = new Palm::PDB;
-$pdb->Load($fname);
+$pdb->Load($pdbfname);
 foreach (@{$pdb->{records}}) {
 	print "Storing record with last name $_->{lastname} , id $_->{id} \n";
 	$dbh->do($store_query, undef,
@@ -90,6 +93,7 @@ foreach (@{$pdb->{records}}) {
 	$_->{notes},
 	$_->{discharged}
 	);
+
 }
 
 
@@ -98,9 +102,10 @@ my $last = 'LAST NAME';
 my $first = 'FIRST NAME';
 my $id = 'ID';
 my $bed = 'LOCATION';
+my $dc = 'DISCHARGED';
 format STDOUT =
-@<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<< @<<<<<<<<<
-$last,                 $first,               $id,           $bed
+@<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<< @<<<<<<<<<<< @<<<<<<<< @<<<<<<<<<<<<<
+$last,                 $first,               $id,           $bed,       $dc ? 'DISCHARGED' : 'DISPLAYED'
 .
 
 write;
@@ -113,6 +118,7 @@ $sth->bind_col(1, \$last);
 $sth->bind_col(2, \$first);
 $sth->bind_col(3, \$id);
 $sth->bind_col(6, \$bed);
+$sth->bind_col(32, \$dc);
 while ($sth->fetch) { write }
 $sth->finish();
 

@@ -1,0 +1,6 @@
+Revision history for Perl extension Palm::PK22Patient.
+
+0.01  Mon Sep  8 18:35:40 2003
+	- original version; created by h2xs 1.22 with options
+		-X Palm::PK22Patient
+
